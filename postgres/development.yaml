@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+
+---
+# Development PostgreSQL cluster
+# Hosts app databases only
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: dev-postgresql
+  namespace: development
+spec:
+  instances: 1
+  enableSuperuserAccess: true
+
+  storage:
+    size: 5Gi
+    storageClass: local-path
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+  postgresql:
+    parameters:
+      max_connections: "50"
+      shared_buffers: "256MB"
+
+  bootstrap:
+    initdb:
+      postInitSQL: []
+      # When adding a new database, also run manually on the existing cluster:
+      # kubectl exec -it -n development dev-postgresql-1 -- psql -U postgres -c "CREATE DATABASE <name> OWNER <owner>;"
+
+  managed:
+    roles:
+      - name: app_user
+        ensure: present
+        login: true
+        superuser: false
+        createdb: true
+        createrole: false
+        inherit: true
+        replication: false
+        bypassrls: false
+        connectionLimit: 20
+        passwordSecret:
+          name: app-postgres-secret
+
+      - name: app_readonly_user
+        ensure: present
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        replication: false
+        bypassrls: false
+        connectionLimit: 5
+        passwordSecret:
+          name: app-readonly-postgres-secret
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-postgres-secret
+  namespace: development
+stringData:
+  username: app_user
+  password: kjkszpj
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-readonly-postgres-secret
+  namespace: development
+stringData:
+  username: app_readonly_user
+  password: kjkszpj

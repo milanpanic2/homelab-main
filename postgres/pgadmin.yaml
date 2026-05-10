@@ -1,0 +1,136 @@
+---
+# ConfigMap with pgAdmin server configuration
+# Password will be prompted in UI - get it with:
+# kubectl get secret -n production prod-postgresql-superuser -o jsonpath='{.data.password}' | base64 -d
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin-config
+  namespace: production
+data:
+  servers.json: |
+    {
+      "Servers": {
+        "1": {
+          "Name": "Production",
+          "Group": "Base service",
+          "Host": "prod-postgresql-rw",
+          "Port": 5432,
+          "MaintenanceDB": "postgres",
+          "Username": "app_user",
+          "SSLMode": "prefer",
+          "Comment": "Production PostgreSQL cluster"
+        },
+        "2": {
+          "Name": "Development",
+          "Group": "Base service",
+          "Host": "dev-postgresql-rw.development.svc.cluster.local",
+          "Port": 5432,
+          "MaintenanceDB": "postgres",
+          "Username": "app_user",
+          "SSLMode": "prefer",
+          "Comment": "Development PostgreSQL cluster"
+        }
+      }
+    }
+
+---
+# pgAdmin Deployment - Web-based PostgreSQL management tool
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      containers:
+      - name: pgadmin
+        image: dpage/pgadmin4:latest
+        ports:
+        - containerPort: 80
+          name: http
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          value: homelab@dev.com
+        - name: PGADMIN_DEFAULT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pgadmin-secret
+              key: password
+        - name: PGADMIN_CONFIG_SERVER_MODE
+          value: "False"
+        - name: PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED
+          value: "False"
+        - name: PGADMIN_SERVER_JSON_FILE
+          value: /pgadmin4/servers.json
+        - name: SCRIPT_NAME
+          value: /tools/pgadmin
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: pgadmin-data
+          mountPath: /var/lib/pgadmin
+        - name: pgadmin-config
+          mountPath: /pgadmin4/servers.json
+          subPath: servers.json
+      volumes:
+      - name: pgadmin-data
+        emptyDir: {}
+      - name: pgadmin-config
+        configMap:
+          name: pgadmin-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+  namespace: production
+spec:
+  selector:
+    app: pgadmin
+  ports:
+  - port: 80
+    targetPort: 80
+    name: http
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pgadmin
+  namespace: production
+spec:
+  ingressClassName: kong
+  rules:
+  - http:
+      paths:
+      - path: /tools/pgadmin
+        pathType: Prefix
+        backend:
+          service:
+            name: pgadmin
+            port:
+              number: 80
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pgadmin-secret
+  namespace: production
+stringData:
+  password: kjkszpj

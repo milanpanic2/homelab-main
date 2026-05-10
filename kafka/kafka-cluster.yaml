@@ -1,0 +1,93 @@
+---
+# Namespace for Kafka
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka-system
+
+---
+# Kafka Cluster - KRaft mode (Kafka 4.x, no ZooKeeper)
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: demo-kafka
+  namespace: kafka-system
+  annotations:
+    strimzi.io/kraft: enabled  # Enable KRaft mode
+spec:
+  kafka:
+    version: 4.1.1
+
+    # Listeners - how clients connect
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+
+    # Kafka broker configuration
+    config:
+      auto.create.topics.enable: true
+      num.partitions: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      log.retention.hours: 168
+      log.segment.bytes: 1073741824
+      compression.type: producer
+
+  # Entity Operator - manages topics and users
+  entityOperator:
+    topicOperator:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
+    userOperator:
+      resources:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
+
+---
+# KafkaNodePool - Defines the Kafka broker nodes
+# In v1 API, replicas/resources/storage moved here
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: kafka-brokers
+  namespace: kafka-system
+  labels:
+    strimzi.io/cluster: demo-kafka
+spec:
+  replicas: 1
+
+  roles:
+    - broker      # These nodes act as brokers
+    - controller  # Also act as controllers (KRaft mode)
+
+  storage:
+    type: persistent-claim
+    size: 10Gi
+    class: local-path
+    deleteClaim: false
+
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: 250m
+    limits:
+      memory: 2Gi
+      cpu: 500m
