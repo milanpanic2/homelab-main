@@ -26,14 +26,19 @@ spec:
               secretKeyRef:
                 name: app-production-secret
                 key: password
+          - name: KC_DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: app-production-secret
+                key: username
         database:
           vendor: postgres
           hostname: prod-postgresql-rw.databases.svc.cluster.local
           port: 5432
           database: keycloak
+          username: cluster_user
           existingSecret: app-production-secret
           existingSecretKey: password
-          existingSecretUsernameKey: username
         http:
           relativePath: /
         proxy:
