@@ -1,0 +1,80 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: forgejo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://code.forgejo.org/forgejo-helm/forgejo
+    chart: forgejo
+    targetRevision: 16.2.1
+    helm:
+      values: |
+        ingress:
+          enabled: true
+          className: kong
+          annotations:
+            cert-manager.io/cluster-issuer: homelab-ca-issuer
+          hosts:
+            - host: forgejo.homelab.com
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - secretName: forgejo-tls
+              hosts:
+                - forgejo.homelab.com
+        gitea:
+          admin:
+            password: aV5XLXE6Fa0P8MdUJEIgfjIfxAsaSQ
+          config:
+            server:
+              DOMAIN: forgejo.homelab.com
+              ROOT_URL: https://forgejo.homelab.com
+              SSH_DOMAIN: forgejo.homelab.com
+              SSH_PORT: 22
+              SSH_LISTEN_PORT: 2222
+            database:
+              DB_TYPE: postgres
+              HOST: prod-postgresql-rw.production.svc.cluster.local:5432
+              NAME: forgejo
+              USER: forgejo
+              PASSWD: forgejo-db-pass
+            cache:
+              ADAPTER: memory
+            session:
+              PROVIDER: memory
+            queue:
+              TYPE: level
+        service:
+          ssh:
+            type: LoadBalancer
+            port: 22
+            targetPort: 2222
+            annotations:
+              metallb.universe.tf/address-pool: homelab-pool
+        postgresql:
+          enabled: false
+        postgresql-ha:
+          enabled: false
+        persistence:
+          enabled: true
+          size: 20Gi
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 100m
+          limits:
+            memory: 512Mi
+            cpu: 500m
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: forgejo
+  syncPolicy:
+    automated:
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
