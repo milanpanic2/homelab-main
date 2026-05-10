@@ -29,7 +29,9 @@ spec:
                 - forgejo.homelab.com
         gitea:
           admin:
-            password: aV5XLXE6Fa0P8MdUJEIgfjIfxAsaSQ
+            existingSecret: app-production-secret
+            usernameKey: username
+            passwordKey: password
           config:
             server:
               DOMAIN: forgejo.homelab.com
@@ -39,16 +41,25 @@ spec:
               SSH_LISTEN_PORT: 2222
             database:
               DB_TYPE: postgres
-              HOST: prod-postgresql-rw.production.svc.cluster.local:5432
+              HOST: prod-postgresql-rw.databases.svc.cluster.local:5432
               NAME: forgejo
-              USER: forgejo
-              PASSWD: forgejo-db-pass
             cache:
               ADAPTER: memory
             session:
               PROVIDER: memory
             queue:
               TYPE: level
+          additionalConfigFromEnvs:
+            - name: FORGEJO__database__USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-production-secret
+                  key: username
+            - name: FORGEJO__database__PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: app-production-secret
+                  key: password
         service:
           ssh:
             type: LoadBalancer

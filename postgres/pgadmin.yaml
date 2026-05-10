@@ -1,12 +1,10 @@
 ---
 # ConfigMap with pgAdmin server configuration
-# Password will be prompted in UI - get it with:
-# kubectl get secret -n production prod-postgresql-superuser -o jsonpath='{.data.password}' | base64 -d
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pgadmin-config
-  namespace: production
+  namespace: databases
 data:
   servers.json: |
     {
@@ -17,17 +15,17 @@ data:
           "Host": "prod-postgresql-rw",
           "Port": 5432,
           "MaintenanceDB": "postgres",
-          "Username": "app_user",
+          "Username": "cluster_user",
           "SSLMode": "prefer",
           "Comment": "Production PostgreSQL cluster"
         },
         "2": {
           "Name": "Development",
           "Group": "Base service",
-          "Host": "dev-postgresql-rw.development.svc.cluster.local",
+          "Host": "dev-postgresql-rw",
           "Port": 5432,
           "MaintenanceDB": "postgres",
-          "Username": "app_user",
+          "Username": "cluster_user",
           "SSLMode": "prefer",
           "Comment": "Development PostgreSQL cluster"
         }
@@ -40,7 +38,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pgadmin
-  namespace: production
+  namespace: databases
 spec:
   replicas: 1
   selector:
@@ -63,7 +61,7 @@ spec:
         - name: PGADMIN_DEFAULT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: pgadmin-secret
+              name: app-production-secret
               key: password
         - name: PGADMIN_CONFIG_SERVER_MODE
           value: "False"
@@ -98,7 +96,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pgadmin
-  namespace: production
+  namespace: databases
 spec:
   selector:
     app: pgadmin
@@ -112,7 +110,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: pgadmin
-  namespace: production
+  namespace: databases
 spec:
   ingressClassName: kong
   rules:
@@ -125,12 +123,3 @@ spec:
             name: pgadmin
             port:
               number: 80
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: pgadmin-secret
-  namespace: production
-stringData:
-  password: kjkszpj

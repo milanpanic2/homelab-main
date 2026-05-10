@@ -20,22 +20,20 @@ spec:
           - "--hostname=keycloak.homelab.com"
         extraEnv: |
           - name: KC_BOOTSTRAP_ADMIN_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: keycloak-admin-credentials
-                key: username
+            value: admin
           - name: KC_BOOTSTRAP_ADMIN_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: keycloak-admin-credentials
+                name: app-production-secret
                 key: password
         database:
           vendor: postgres
-          hostname: prod-postgresql-rw.production.svc.cluster.local
+          hostname: prod-postgresql-rw.databases.svc.cluster.local
           port: 5432
           database: keycloak
-          username: keycloak
-          password: keycloak-db-pass
+          existingSecret: app-production-secret
+          existingSecretKey: password
+          existingSecretUsernameKey: username
         http:
           relativePath: /
         proxy:
