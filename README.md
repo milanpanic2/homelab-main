@@ -1,10 +1,19 @@
 # homelab-main
 
-Kubernetes manifests for homelab, deployed via ArgoCD.
+Kubernetes manifests for homelab cluster with sane defaults, deployed via ArgoCD
 
 ## Bootstrap
 
-1. Install k3s and ArgoCD (on NixOS use `k3s.nix`, otherwise install manually)
+Clone the repo, and run the following commands:
+
+1. Install ArgoCD:
+
+```bash
+helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --version 8.0.14 --namespace argocd --create-namespace
+```
+
+On NixOS, steps 1-2 are handled by `k3s.nix`.
+
 2. Edit `bootstrap.yaml` and change the password in the secret
 3. Apply the bootstrap:
 
