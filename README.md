@@ -10,10 +10,8 @@ Clone the repo, and run the following commands:
 1. Install ArgoCD:
 
 ```bash
-helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --version 8.0.14 --namespace argocd --create-namespace
+helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace
 ```
-
-On NixOS, steps 1-2 are handled by `k3s.nix`.
 
 2. Edit `bootstrap.yaml` and change the password in the secret
 3. Apply the bootstrap:
