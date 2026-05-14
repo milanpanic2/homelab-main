@@ -4,6 +4,7 @@ Kubernetes manifests for homelab cluster with sane defaults, deployed via ArgoCD
 
 ## Bootstrap
 
+Prerequisites: k3s, helm or connection to kubernetes cluster
 Clone the repo, and run the following commands:
 
 1. Install ArgoCD:
