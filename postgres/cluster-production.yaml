@@ -1,6 +1,6 @@
 ---
 # Production PostgreSQL cluster
-# Hosts app databases + infrastructure databases (keycloak, forgejo)
+# Hosts app databases + infrastructure databases (forgejo, auth)
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -47,10 +47,10 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
-  name: keycloak-db
+  name: auth-db
   namespace: databases
 spec:
-  name: keycloak
+  name: auth
   owner: cluster_user
   cluster:
     name: prod-postgresql

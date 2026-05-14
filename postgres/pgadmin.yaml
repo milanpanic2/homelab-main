@@ -69,8 +69,6 @@ spec:
           value: "False"
         - name: PGADMIN_SERVER_JSON_FILE
           value: /pgadmin4/servers.json
-        - name: SCRIPT_NAME
-          value: /tools/pgadmin
         resources:
           requests:
             memory: "256Mi"
@@ -111,12 +109,19 @@ kind: Ingress
 metadata:
   name: pgadmin
   namespace: databases
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca-issuer
 spec:
-  ingressClassName: kong
+  ingressClassName: traefik
+  tls:
+  - secretName: pgadmin-tls
+    hosts:
+    - sql.homelab.com
   rules:
-  - http:
+  - host: sql.homelab.com
+    http:
       paths:
-      - path: /tools/pgadmin
+      - path: /
         pathType: Prefix
         backend:
           service:
