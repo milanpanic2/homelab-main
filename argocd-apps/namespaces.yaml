@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vscode-https
+  name: namespaces
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   project: default
   source:
     repoURL: https://github.com/milanpanic2/homelab-main.git
-    path: vscode-https
+    path: namespaces
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc

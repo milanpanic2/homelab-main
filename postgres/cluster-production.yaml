@@ -1,10 +1,9 @@
 ---
-# Production PostgreSQL cluster
-# Hosts app databases + infrastructure databases (forgejo, auth)
+# PostgreSQL cluster
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: prod-postgresql
+  name: postgresql
   namespace: databases
 spec:
   instances: 1
@@ -40,20 +39,7 @@ spec:
         bypassrls: false
         connectionLimit: 50
         passwordSecret:
-          name: app-production-secret
-
----
-# Declarative database creation
-apiVersion: postgresql.cnpg.io/v1
-kind: Database
-metadata:
-  name: auth-db
-  namespace: databases
-spec:
-  name: auth
-  owner: cluster_user
-  cluster:
-    name: prod-postgresql
+          name: app-secret
 
 ---
 apiVersion: postgresql.cnpg.io/v1
@@ -65,4 +51,4 @@ spec:
   name: forgejo
   owner: cluster_user
   cluster:
-    name: prod-postgresql
+    name: postgresql

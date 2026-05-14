@@ -15,7 +15,7 @@ spec:
       values: |
         ingress:
           enabled: true
-          className: kong
+          className: traefik
           annotations:
             cert-manager.io/cluster-issuer: homelab-ca-issuer
           hosts:
@@ -29,7 +29,7 @@ spec:
                 - forgejo.homelab.com
         gitea:
           admin:
-            existingSecret: app-production-secret
+            existingSecret: app-secret
             usernameKey: username
             passwordKey: password
           config:
@@ -41,7 +41,7 @@ spec:
               SSH_LISTEN_PORT: 2222
             database:
               DB_TYPE: postgres
-              HOST: prod-postgresql-rw.databases.svc.cluster.local:5432
+              HOST: postgresql-rw.databases.svc.cluster.local:5432
               NAME: forgejo
             cache:
               ADAPTER: memory
@@ -53,12 +53,12 @@ spec:
             - name: FORGEJO__database__USER
               valueFrom:
                 secretKeyRef:
-                  name: app-production-secret
+                  name: app-secret
                   key: username
             - name: FORGEJO__database__PASSWD
               valueFrom:
                 secretKeyRef:
-                  name: app-production-secret
+                  name: app-secret
                   key: password
         service:
           ssh:

@@ -10,24 +10,13 @@ data:
     {
       "Servers": {
         "1": {
-          "Name": "Production",
+          "Name": "PostgreSQL",
           "Group": "Base service",
-          "Host": "prod-postgresql-rw",
+          "Host": "postgresql-rw",
           "Port": 5432,
           "MaintenanceDB": "postgres",
           "Username": "cluster_user",
-          "SSLMode": "prefer",
-          "Comment": "Production PostgreSQL cluster"
-        },
-        "2": {
-          "Name": "Development",
-          "Group": "Base service",
-          "Host": "dev-postgresql-rw",
-          "Port": 5432,
-          "MaintenanceDB": "postgres",
-          "Username": "cluster_user",
-          "SSLMode": "prefer",
-          "Comment": "Development PostgreSQL cluster"
+          "SSLMode": "prefer"
         }
       }
     }
@@ -61,7 +50,7 @@ spec:
         - name: PGADMIN_DEFAULT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: app-production-secret
+              name: app-secret
               key: password
         - name: PGADMIN_CONFIG_SERVER_MODE
           value: "False"
