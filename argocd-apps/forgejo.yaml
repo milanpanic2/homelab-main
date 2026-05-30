@@ -29,7 +29,7 @@ spec:
                 - forgejo.homelab.com
         gitea:
           admin:
-            existingSecret: app-secret
+            existingSecret: cluster-secret
             usernameKey: username
             passwordKey: password
           config:
@@ -53,12 +53,12 @@ spec:
             - name: FORGEJO__database__USER
               valueFrom:
                 secretKeyRef:
-                  name: app-secret
+                  name: cluster-secret
                   key: username
             - name: FORGEJO__database__PASSWD
               valueFrom:
                 secretKeyRef:
-                  name: app-secret
+                  name: cluster-secret
                   key: password
         service:
           ssh:

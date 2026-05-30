@@ -39,7 +39,7 @@ spec:
         bypassrls: false
         connectionLimit: 50
         passwordSecret:
-          name: app-secret
+          name: cluster-secret
 
 ---
 apiVersion: postgresql.cnpg.io/v1

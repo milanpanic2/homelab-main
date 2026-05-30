@@ -50,7 +50,7 @@ spec:
         - name: PGADMIN_DEFAULT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: app-secret
+              name: cluster-secret
               key: password
         - name: PGADMIN_CONFIG_SERVER_MODE
           value: "False"
