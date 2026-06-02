@@ -21,6 +21,14 @@ spec:
           value: "true"
         - name: sidecar.datasources.label
           value: grafana_datasource
+        - name: initChownData.enabled
+          value: "false"
+        - name: securityContext.runAsUser
+          value: "472"
+        - name: securityContext.runAsGroup
+          value: "472"
+        - name: securityContext.fsGroup
+          value: "472"
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
