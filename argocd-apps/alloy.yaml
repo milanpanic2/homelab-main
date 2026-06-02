@@ -19,6 +19,22 @@ spec:
           value: alloy-config
         - name: alloy.configMap.key
           value: config.alloy
+        - name: alloy.extraPorts[0].name
+          value: otlp-grpc
+        - name: alloy.extraPorts[0].port
+          value: "4317"
+        - name: alloy.extraPorts[0].targetPort
+          value: "4317"
+        - name: alloy.extraPorts[0].protocol
+          value: TCP
+        - name: alloy.extraPorts[1].name
+          value: otlp-http
+        - name: alloy.extraPorts[1].port
+          value: "4318"
+        - name: alloy.extraPorts[1].targetPort
+          value: "4318"
+        - name: alloy.extraPorts[1].protocol
+          value: TCP
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
