@@ -17,10 +17,8 @@ spec:
           value: "1"
         - name: loki.storage.type
           value: filesystem
-        - name: singleBinary.replicas
-          value: "1"
         - name: deploymentMode
-          value: Monolithic
+          value: SingleBinary
         - name: chunksCache.enabled
           value: "false"
         - name: resultsCache.enabled

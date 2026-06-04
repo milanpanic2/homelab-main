@@ -17,7 +17,9 @@ spec:
           value: "10Gi"
         - name: alertmanager.enabled
           value: "false"
-        - name: server.remoteWrite.enabled
+        - name: server.global.scrape_interval
+          value: "15s"
+        - name: server.enableRemoteWriteReceiver
           value: "true"
   destination:
     server: https://kubernetes.default.svc

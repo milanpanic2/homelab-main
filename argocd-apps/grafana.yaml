@@ -21,6 +21,10 @@ spec:
           value: "true"
         - name: sidecar.datasources.label
           value: grafana_datasource
+        - name: sidecar.dashboards.enabled
+          value: "true"
+        - name: sidecar.dashboards.label
+          value: grafana_dashboard
         - name: initChownData.enabled
           value: "false"
         - name: securityContext.runAsUser
