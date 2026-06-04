@@ -11,9 +11,9 @@ metadata:
   namespace: apps
   annotations:
     reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
-    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "forgejo,databases"
+    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "forgejo,databases,monitoring"
     reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "forgejo,databases"
+    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "forgejo,databases,monitoring"
 stringData:
   username: cluster_user
   password: kjkszpj

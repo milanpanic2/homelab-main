@@ -29,6 +29,12 @@ spec:
           value: "472"
         - name: securityContext.fsGroup
           value: "472"
+        - name: admin.existingSecret
+          value: cluster-secret
+        - name: admin.userKey
+          value: username
+        - name: admin.passwordKey
+          value: password
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
