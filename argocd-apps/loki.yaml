@@ -10,15 +10,15 @@ spec:
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: loki
-    targetRevision: 7.0.0
+    targetRevision: 6.29.0
     helm:
       parameters:
         - name: loki.commonConfig.replication_factor
           value: "1"
         - name: loki.storage.type
           value: filesystem
-        - name: deploymentMode
-          value: SingleBinary
+        - name: singleBinary.replicas
+          value: "1"
         - name: chunksCache.enabled
           value: "false"
         - name: resultsCache.enabled
