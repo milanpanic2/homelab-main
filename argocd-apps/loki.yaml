@@ -13,10 +13,6 @@ spec:
     targetRevision: 6.29.0
     helm:
       parameters:
-        - name: loki.commonConfig.replication_factor
-          value: "1"
-        - name: loki.storage.type
-          value: filesystem
         - name: deploymentMode
           value: SingleBinary
         - name: singleBinary.replicas
@@ -27,6 +23,28 @@ spec:
           value: "0"
         - name: backend.replicas
           value: "0"
+        - name: loki.commonConfig.replication_factor
+          value: "1"
+        - name: loki.storage.type
+          value: filesystem
+        - name: loki.schemaConfig.configs[0].from
+          value: "2024-01-01"
+        - name: loki.schemaConfig.configs[0].store
+          value: tsdb
+        - name: loki.schemaConfig.configs[0].object_store
+          value: filesystem
+        - name: loki.schemaConfig.configs[0].schema
+          value: v13
+        - name: loki.schemaConfig.configs[0].index.prefix
+          value: loki_index_
+        - name: loki.schemaConfig.configs[0].index.period
+          value: 24h
+        - name: loki.limits_config.retention_period
+          value: 720h
+        - name: loki.compactor.retention_enabled
+          value: "true"
+        - name: loki.compactor.delete_request_store
+          value: filesystem
         - name: chunksCache.enabled
           value: "false"
         - name: resultsCache.enabled
