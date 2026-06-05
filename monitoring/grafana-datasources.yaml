@@ -12,7 +12,7 @@ data:
       - name: Prometheus
         type: prometheus
         uid: prometheus
-        url: http://prometheus-server.monitoring:80
+        url: http://prometheus-server.monitoring
         isDefault: true
         access: proxy
 
@@ -31,11 +31,14 @@ data:
       - name: Loki
         type: loki
         uid: loki
-        url: http://loki.monitoring:3100
+        url: http://loki-gateway.monitoring
         access: proxy
         jsonData:
+          httpHeaderName1: X-Scope-OrgID
           derivedFields:
             - name: TraceID
               datasourceUid: tempo
               matcherRegex: '"trace_id":"(\w+)"'
               url: "$${__value.raw}"
+        secureJsonData:
+          httpHeaderValue1: "1"

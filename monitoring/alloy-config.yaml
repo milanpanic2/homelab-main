@@ -38,7 +38,7 @@ data:
 
     prometheus.remote_write "default" {
       endpoint {
-        url = "http://prometheus-server.monitoring:80/api/v1/write"
+        url = "http://prometheus-server.monitoring/api/v1/write"
       }
     }
 
@@ -49,6 +49,7 @@ data:
 
     loki.write "default" {
       endpoint {
-        url = "http://loki.monitoring:3100/loki/api/v1/push"
+        url = "http://loki-gateway.monitoring/loki/api/v1/push"
+        tenant_id = "1"
       }
     }
