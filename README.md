@@ -10,7 +10,7 @@ Clone the repo, and run the following commands:
 1. Install ArgoCD:
 
 ```bash
-helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace
+helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace --set 'configs.params.server\.insecure=true'
 ```
 
 2. Edit `bootstrap.yaml` and change the password in the secret
