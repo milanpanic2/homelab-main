@@ -10,8 +10,10 @@ Clone the repo, and run the following commands:
 1. Install ArgoCD:
 
 ```bash
-helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace --set 'configs.params.server\.insecure=true'
+helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace --set 'configs.params.server\.insecure=true' --set 'configs.secret.argocdServerAdminPassword=kjkszpj'
 ```
+
+> **Note:** Change `kjkszpj` in the helm command above (ArgoCD admin password) and in `bootstrap.yaml` (cluster database password) before running.
 
 2. Edit `bootstrap.yaml` and change the password in the secret
 3. Apply the bootstrap:
