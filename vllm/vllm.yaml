@@ -1,0 +1,73 @@
+# Uncomment or create resources manually before deploying if gated model:
+#   kubectl create namespace vllm
+#   kubectl create secret generic hf-secret -n vllm --from-literal=token=YOUR_HF_TOKEN
+#
+# or
+#
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: hf-secret
+#   namespace: vllm
+# stringData:
+#   token: YOUR_HF_TOKEN
+# ---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vllm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: vllm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:latest
+        args:
+        - "--model"
+        - "Qwen/Qwen3.6-27B-AWQ"
+        - "--gpu-memory-utilization"
+        - "0.85"
+        - "--max-model-len"
+        - "8192"
+        resources:
+          requests:
+            cpu: "2"
+            memory: "16Gi"
+          limits:
+            cpu: "4"
+            memory: "24Gi"
+            nvidia.com/gpu: 1
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: hf-cache
+          mountPath: /root/.cache/huggingface
+      volumes:
+      - name: hf-cache
+        hostPath:
+          path: /home/mpanic/.cache/huggingface
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: vllm
+spec:
+  selector:
+    app: vllm
+  ports:
+  - port: 8000
+    targetPort: 8000
