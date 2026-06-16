@@ -71,6 +71,7 @@ kubectl patch secret <secret-name> -n <namespace> -p '{"stringData": {"<key>": "
 kubectl apply -f ~/cluster/manifests/nvidia-device-plugin/device-plugin.yaml
 kubectl delete -f ~/cluster/manifests/nvidia-device-plugin/device-plugin.yaml
 ```
+> **Note** In order for k3s containerd to access nvidia containerd runtime and schedule GPU workloads, a k3s containerd config is needed. Configuration: https://github.com/milanpanic2/nixos-config/blob/main/modules/k3s.nix contains containerdConfigTemplate
 
 **vLLM:**
 

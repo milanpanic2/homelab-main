@@ -1,3 +1,9 @@
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: nvidia
+handler: nvidia
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -12,20 +18,21 @@ spec:
       labels:
         name: nvidia-device-plugin
     spec:
+      runtimeClassName: nvidia
       tolerations:
-      - key: nvidia.com/gpu
-        operator: Exists
-        effect: NoSchedule
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
       containers:
-      - name: nvidia-device-plugin
-        image: nvcr.io/nvidia/k8s-device-plugin:v0.17.0
-        securityContext:
-          capabilities:
-            drop: ["ALL"]
-        volumeMounts:
-        - name: device-plugins
-          mountPath: /var/lib/kubelet/device-plugins
+        - name: nvidia-device-plugin
+          image: nvcr.io/nvidia/k8s-device-plugin:v0.17.0
+          securityContext:
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: device-plugins
+              mountPath: /var/lib/kubelet/device-plugins
       volumes:
-      - name: device-plugins
-        hostPath:
-          path: /var/lib/kubelet/device-plugins
+        - name: device-plugins
+          hostPath:
+            path: /var/lib/kubelet/device-plugins
