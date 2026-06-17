@@ -32,16 +32,18 @@ spec:
       labels:
         app: vllm
     spec:
+      runtimeClassName: nvidia
       containers:
       - name: vllm
         image: vllm/vllm-openai:latest
         args:
         - "--model"
-        - "Qwen/Qwen3.6-27B-AWQ"
+        - "Lorbus/Qwen3.6-27B-int4-AutoRound"
         - "--gpu-memory-utilization"
-        - "0.85"
+        - "0.88"
         - "--max-model-len"
         - "8192"
+        - "--enforce-eager"
         resources:
           requests:
             cpu: "2"
@@ -63,7 +65,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: vllm
+  name: vllm-svc
   namespace: vllm
 spec:
   selector:

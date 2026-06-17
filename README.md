@@ -10,10 +10,16 @@ Clone the repo, and run the following commands:
 1. Install ArgoCD:
 
 ```bash
-helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace --set 'configs.params.server\.insecure=true' --set 'configs.secret.argocdServerAdminPassword=kjkszpj'
+helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace --set 'configs.params.server\.insecure=true'
 ```
 
 > **Note:** Change `kjkszpj` in the helm command above (ArgoCD admin password) and in `bootstrap.yaml` (cluster database password) before running.
+>
+> To retrieve a secret value:
+> ```bash
+> kubectl -n <namespace> get secret <secret-name> -o jsonpath='{.data.<key>}' | base64 -d; echo
+> ```
+> Useful secrets: `argocd/argocd-initial-admin-secret .data.password`, `apps/cluster-secret .data.password`
 
 2. Edit `bootstrap.yaml` and change the password in the secret
 3. Apply the bootstrap:
@@ -82,6 +88,8 @@ Or create yourself.
 ```bash
 kubectl apply -f ~/cluster/manifests/vllm/vllm.yaml
 kubectl delete -f ~/cluster/manifests/vllm/vllm.yaml
+# If renaming resources (e.g. Service), delete first then apply:
+kubectl delete -f ~/cluster/manifests/vllm/vllm.yaml && kubectl apply -f ~/cluster/manifests/vllm/vllm.yaml
 ```
 
 **Open WebUI** (chat interface, connects to vLLM):

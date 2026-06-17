@@ -18,16 +18,16 @@ spec:
         image: ghcr.io/open-webui/open-webui:main
         env:
         - name: OPENAI_API_BASE_URL
-          value: "http://vllm:8000/v1"
+          value: "http://vllm-svc:8000/v1"
         - name: OPENAI_API_KEY
           value: "unused"
         resources:
           requests:
             cpu: "100m"
-            memory: "256Mi"
-          limits:
-            cpu: "500m"
             memory: "512Mi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
         ports:
         - containerPort: 8080
 ---
@@ -42,3 +42,22 @@ spec:
   ports:
   - port: 8080
     targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: open-webui
+  namespace: vllm
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: chat.homelab.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: open-webui
+            port:
+              number: 8080
