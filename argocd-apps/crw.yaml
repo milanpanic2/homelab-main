@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/milanpanic2/homelab-main.git
-    path: manifests/crw
+    path: crw
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc

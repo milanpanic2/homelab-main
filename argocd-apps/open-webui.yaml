@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/milanpanic2/homelab-main.git
-    path: manifests/open-webui
+    path: open-webui
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc
