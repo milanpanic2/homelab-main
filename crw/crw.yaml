@@ -21,6 +21,11 @@ spec:
       containers:
         - name: crw
           image: ghcr.io/us/crw
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: CRW_SEARCH__SEARXNG_URL
+              value: "http://searxng.searxng.svc.cluster.local:8080"
           ports:
             - containerPort: 3000
           livenessProbe:
