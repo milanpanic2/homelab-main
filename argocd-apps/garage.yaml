@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    # The Garage chart is not published to a Helm repo; it lives inside their git repo.
+    repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage.git
+    path: script/helm/garage
+    targetRevision: main-v2
+    helm:
+      values: |
+        garage:
+          replicationFactor: "1"
+          existingRpcSecret: garage-rpc-secret
+        deployment:
+          kind: StatefulSet
+          replicaCount: 1
+        persistence:
+          enabled: true
+          meta:
+            storageClass: "local-path"
+            size: 100Mi
+          data:
+            storageClass: "local-path"
+            size: 10Gi
+        ingress:
+          s3:
+            api:
+              enabled: true
+              className: traefik
+              annotations:
+                cert-manager.io/cluster-issuer: homelab-ca-issuer
+              hosts:
+                - host: s3-api.homelab.com
+                  paths:
+                    - path: /
+                      pathType: Prefix
+              tls:
+                - secretName: garage-ingress-cert
+                  hosts:
+                    - s3-api.homelab.com
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: garage
+  syncPolicy:
+    automated:
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+# assign persistent volume to garage layout
+#  kubectl -n garage exec -it garage-0 -- /garage status          # note the node ID
+#  kubectl -n garage exec -it garage-0 -- /garage layout assign -z home -c 10G <node-id>
+#  kubectl -n garage exec -it garage-0 -- /garage layout apply --version 1
