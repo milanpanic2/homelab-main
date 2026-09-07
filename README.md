@@ -127,6 +127,20 @@ kubectl get events -n <namespace> --sort-by='.lastTimestamp'
 
 # View events for a specific pod
 kubectl describe pod <name> -n <namespace>
+
+# assign persistent volume to garage layout
+kubectl -n garage exec -it garage-0 -- /garage status          # note the node ID
+kubectl -n garage exec -it garage-0 -- /garage layout assign -z home -c 10G <node-id>
+kubectl -n garage exec -it garage-0 -- /garage layout apply --version 1
+
+# setup garage-rpc-secret for distributed node communication
+# needs openssl installed to generate password
+kubectl -n garage create secret generic garage-rpc-secret --from-literal=rpcSecret=$(openssl rand -hex 32)
+# on nixos:
+kubectl -n garage create secret generic garage-rpc-secret --from-literal=rpcSecret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+
+# delete secret example
+kubectl -n garage delete secret garage-rpc-secret
 ```
 
 ## Sync wave order
@@ -136,3 +150,5 @@ kubectl describe pod <name> -n <namespace>
 - **Wave 1**: MetalLB config, cert-manager config
 - **Wave 2**: PostgreSQL, Forgejo, Kafka
 - **Wave 3**: Auth service
+
+

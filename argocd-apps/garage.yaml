@@ -8,10 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    # The Garage chart is not published to a Helm repo; it lives inside their git repo.
     repoURL: https://git.deuxfleurs.fr/Deuxfleurs/garage.git
     path: script/helm/garage
-    targetRevision: main-v2
+    targetRevision: v2.3.0
     helm:
       values: |
         garage:
@@ -52,8 +51,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
-# assign persistent volume to garage layout
-#  kubectl -n garage exec -it garage-0 -- /garage status          # note the node ID
-#  kubectl -n garage exec -it garage-0 -- /garage layout assign -z home -c 10G <node-id>
-#  kubectl -n garage exec -it garage-0 -- /garage layout apply --version 1
