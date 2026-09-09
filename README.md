@@ -98,6 +98,47 @@ kubectl apply -f ~/cluster/manifests/vllm/open-webui.yaml
 kubectl delete -f ~/cluster/manifests/vllm/open-webui.yaml
 ```
 
+## Garage (S3 object storage)
+
+Secrets: `rpc_secret` and `admin_token` are injected from the
+`cluster-secret` (bootstrap) via the `GARAGE_RPC_SECRET` / `GARAGE_ADMIN_TOKEN` env
+vars. Rotate them in `bootstrap.yaml` (`garage_rpc_secret`, `garage_admin_token`).
+
+### Ports
+
+| Port | Purpose   | On the k8s Service? | Notes |
+|------|-----------|---------------------|-------|
+| 3900 | S3 API    | ✅ yes              | Object storage endpoint — connect S3 clients here |
+| 3902 | Web       | ✅ yes              | Static website serving (routes by `Host` header) |
+| 3901 | RPC       | ❌ (single node)    | Inter-node cluster traffic; add a headless Service when scaling to multi-node |
+| 3903 | Admin API | ✅ (ClusterIP only) | Management; used by garage-webui. Not exposed externally |
+
+### First-time setup (run ONCE per cluster)
+
+Garage needs a storage layout assigned before it accepts data. This is a one-time
+imperative step — the layout persists on the PVC, so you never run it again (survives
+restarts/upgrades). After the pod is `Running`:
+
+```bash
+# assign this node 10G of capacity, then commit the layout
+NODE=$(kubectl -n garage exec garage-0 -- /garage status | awk 'NR>2{print $1; exit}')
+kubectl -n garage exec garage-0 -- /garage layout assign -z default -c 10G "$NODE"
+kubectl -n garage exec garage-0 -- /garage layout apply --version 1
+```
+
+### Connecting
+  `http://garage.garage.svc.cluster.local:3900`, region `garage`.
+
+Editing `garage.toml` (the ConfigMap) does **not** restart the pod — reload with
+`kubectl -n garage rollout restart statefulset garage`.
+
+### garage-webui (management UI)
+
+`garage-webui/garage-webui.yaml` runs [`khairul169/garage-webui`](https://github.com/khairul169/garage-webui)
+in the `garage` namespace, talking to the admin API (`:3903`) and S3 (`:3900`) over the
+internal Service. Only the UI is exposed, via ingress at **`https://garage.homelab.com`**.
+The ArgoCD app is `argocd-apps/garage-webui.yaml` (sync-wave 3).
+
 ## Useful commands
 
 ```bash
@@ -148,7 +189,7 @@ kubectl -n garage delete secret garage-rpc-secret
 - **Wave -1**: Namespaces (databases, forgejo, apps)
 - **Wave 0**: MetalLB, cert-manager, Reflector, CNPG, Strimzi
 - **Wave 1**: MetalLB config, cert-manager config
-- **Wave 2**: PostgreSQL, Forgejo, Kafka
-- **Wave 3**: Auth service
+- **Wave 2**: PostgreSQL, Forgejo, Kafka, Garage
+- **Wave 3**: Auth service, garage-webui
 
 

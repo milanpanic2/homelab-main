@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: garage-webui
+  namespace: garage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: garage-webui
+  template:
+    metadata:
+      labels:
+        app: garage-webui
+    spec:
+      containers:
+        - name: garage-webui
+          image: khairul169/garage-webui:1.1.0
+          ports:
+            - containerPort: 3909
+          env:
+            # Admin API (3903) and S3 API (3900) reached in-cluster only.
+            - name: API_BASE_URL
+              value: "http://garage.garage.svc.cluster.local:3903"
+            - name: API_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-secret
+                  key: garage_admin_token
+            - name: S3_ENDPOINT_URL
+              value: "http://garage.garage.svc.cluster.local:3900"
+            - name: S3_REGION
+              value: "garage"
+            - name: PORT
+              value: "3909"
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: garage-webui
+  namespace: garage
+spec:
+  selector:
+    app: garage-webui
+  ports:
+    - port: 3909
+      targetPort: 3909
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: garage-webui
+  namespace: garage
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca-issuer
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - garage.homelab.com
+      secretName: garage-webui-cert
+  rules:
+    - host: garage.homelab.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: garage-webui
+                port:
+                  number: 3909

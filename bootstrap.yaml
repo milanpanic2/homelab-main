@@ -11,12 +11,14 @@ metadata:
   namespace: apps
   annotations:
     reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
-    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "forgejo,databases,monitoring"
+    reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "forgejo,databases,monitoring,garage"
     reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "forgejo,databases,monitoring"
+    reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "forgejo,databases,monitoring,garage"
 stringData:
   username: cluster_user
   password: kjkszpj # change this
+  garage_rpc_secret: 593c7ee3c33b0322a92f308975c942ada47cb0c0eb04dec7b73796712304f8bd # change this - README.md
+  garage_admin_token: c9ce0e7ffea8feaafcef9551a2740795f58611d54b2a4365e99b1fb8e3a7f8e9 # change this - README.md
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
