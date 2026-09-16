@@ -52,28 +52,28 @@ spec:
   ports:
     - port: 3909
       targetPort: 3909
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: garage-webui
-  namespace: garage
-  annotations:
-    cert-manager.io/cluster-issuer: homelab-ca-issuer
-spec:
-  ingressClassName: traefik
-  tls:
-    - hosts:
-        - garage.homelab.com
-      secretName: garage-webui-cert
-  rules:
-    - host: garage.homelab.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: garage-webui
-                port:
-                  number: 3909
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: garage-webui
+#   namespace: garage
+#   annotations:
+#     cert-manager.io/cluster-issuer: homelab-ca-issuer
+# spec:
+#   ingressClassName: traefik
+#   tls:
+#     - hosts:
+#         - garage.homelab.com
+#       secretName: garage-webui-cert
+#   rules:
+#     - host: garage.homelab.com
+#       http:
+#         paths:
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: garage-webui
+#                 port:
+#                   number: 3909
