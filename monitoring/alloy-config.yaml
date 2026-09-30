@@ -5,7 +5,9 @@ metadata:
   namespace: monitoring
 data:
   config.alloy: |
-    // Receive OTLP data from applications
+    // ---------------------------------------------------------------------
+    // Traces + metrics: received from applications over OTLP
+    // ---------------------------------------------------------------------
     otelcol.receiver.otlp "default" {
       grpc {
         endpoint = "0.0.0.0:4317"
@@ -17,7 +19,6 @@ data:
       output {
         traces  = [otelcol.exporter.otlp.tempo.input]
         metrics = [otelcol.exporter.prometheus.default.input]
-        logs    = [otelcol.exporter.loki.default.input]
       }
     }
 
@@ -42,11 +43,65 @@ data:
       }
     }
 
-    // Export logs to Loki
-    otelcol.exporter.loki "default" {
+    // ---------------------------------------------------------------------
+    // Logs: tailed from pod stdout/stderr on each node -> Loki
+    // ---------------------------------------------------------------------
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    // Build Loki labels and the on-disk log path for each container
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+        target_label  = "app"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label  = "node"
+      }
+      // /var/log/pods/<namespace>_<pod>_<uid>/<container>/*.log
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        separator     = "/"
+        action        = "replace"
+        replacement   = "/var/log/pods/*$1/*.log"
+        target_label  = "__path__"
+      }
+    }
+
+    // Match the log files present on this node's disk
+    local.file_match "pod_logs" {
+      path_targets = discovery.relabel.pod_logs.output
+    }
+
+    // Tail the container stdout/stderr log files
+    loki.source.file "pod_logs" {
+      targets    = local.file_match.pod_logs.targets
+      forward_to = [loki.process.pod_logs.receiver]
+    }
+
+    // Parse the CRI (containerd) log format
+    loki.process "pod_logs" {
+      stage.cri {}
       forward_to = [loki.write.default.receiver]
     }
 
+    // Ship logs to Loki
     loki.write "default" {
       endpoint {
         url = "http://loki-gateway.monitoring/loki/api/v1/push"
