@@ -19,8 +19,10 @@ spec:
           value: "false"
         - name: server.global.scrape_interval
           value: "15s"
-        - name: server.enableRemoteWriteReceiver
-          value: "true"
+        - name: server.extraFlags[0]
+          value: web.enable-lifecycle
+        - name: server.extraFlags[1]
+          value: web.enable-remote-write-receiver
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

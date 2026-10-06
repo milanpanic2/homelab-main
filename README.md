@@ -28,6 +28,9 @@ helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namesp
 kubectl apply -f bootstrap.yaml
 ```
 
+Then go to garage section below for further mandatory things:
+
+
 ArgoCD takes over and deploys everything via sync waves.
 
 ### Changing passwords after deployment
