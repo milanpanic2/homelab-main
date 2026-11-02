@@ -57,12 +57,12 @@ spec:
             - name: GARAGE_RPC_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: cluster-secret
+                  name: garage-secrets
                   key: garage_rpc_secret
             - name: GARAGE_ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: cluster-secret
+                  name: garage-secrets
                   key: garage_admin_token
           ports:
             - { containerPort: 3900, name: s3-api }
@@ -95,7 +95,7 @@ spec:
         accessModes: [ReadWriteOnce]
         resources:
           requests:
-            storage: 10Gi
+            storage: 50Gi
 ---
 apiVersion: v1
 kind: Service

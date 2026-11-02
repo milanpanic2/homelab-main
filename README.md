@@ -1,218 +1,279 @@
 # homelab-main
 
-Kubernetes manifests for homelab cluster with sane defaults, deployed via ArgoCD
+GitOps manifests for a single-node k3s homelab. ArgoCD watches this repo and applies
+everything in sync-wave order. The only imperative steps are the initial bootstrap and
+Garage's one-time setup.
+
+## Contents
+
+- [Architecture](#architecture)
+- [Bootstrap](#bootstrap)
+- [Garage](#garage)
+- [Operations](#operations)
+  - [ArgoCD](#argocd)
+  - [Restart a workload](#restart-a-workload)
+  - [Resize or relocate a volume (local-path)](#resize-or-relocate-a-volume-local-path)
+  - [Rotating the DB password](#rotating-the-db-password)
+  - [Secrets](#secrets)
+  - [Manual deployments (outside ArgoCD)](#manual-deployments-outside-argocd)
+- [Debugging (k9s)](#debugging-k9s)
+- [Reference — sync waves](#reference--sync-waves)
+
+## Architecture
+
+- **k3s** on a single NixOS host.
+- **ArgoCD**, app-of-apps pattern: `bootstrap.yaml` installs a `root` Application that
+  deploys everything under `argocd-apps/`.
+- **Secrets**: `bootstrap.yaml` seeds `cluster-secret`; Reflector mirrors it into the
+  namespaces that consume it. Garage's secrets are generated in-cluster, never committed.
+- **Storage**: `local-path`, backed by the host's `/home` partition.
 
 ## Bootstrap
 
-Prerequisites: k3s, helm or connection to kubernetes cluster
-Clone the repo, and run the following commands:
+Requires a running k3s cluster with `kubectl` and `helm`.
 
-1. Install ArgoCD:
+1. Install ArgoCD and set the admin password:
 
 ```bash
-helm install argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --create-namespace --set 'configs.params.server\.insecure=true'
+helm install argocd argo-cd \
+  --repo https://argoproj.github.io/argo-helm \
+  --namespace argocd --create-namespace \
+  --set 'configs.params.server\.insecure=true' \
+  --set 'configs.secret.argocdServerAdminPassword=CHANGE_ME'
 ```
 
-> **Note:** Change `kjkszpj` in the helm command above (ArgoCD admin password) and in `bootstrap.yaml` (cluster database password) before running.
->
-> To retrieve a secret value:
-> ```bash
-> kubectl -n <namespace> get secret <secret-name> -o jsonpath='{.data.<key>}' | base64 -d; echo
-> ```
-> Useful secrets: `argocd/argocd-initial-admin-secret .data.password`, `apps/cluster-secret .data.password`
-
-2. Edit `bootstrap.yaml` and change the password in the secret
-3. Apply the bootstrap:
+2. Set the DB password in `bootstrap.yaml` (`stringData.password`).
+3. Apply it:
 
 ```bash
 kubectl apply -f bootstrap.yaml
 ```
 
-Then go to garage section below for further mandatory things:
+ArgoCD deploys the rest by sync wave. Complete the Garage setup before using object storage.
 
+## Garage
 
-ArgoCD takes over and deploys everything via sync waves.
+S3 object storage. Secrets and layout persist on the PVC, so setup runs once per cluster.
+`garage-0` stays in `CreateContainerConfigError` until `garage-secrets` exists.
 
-### Changing passwords after deployment
+| Port | Purpose   | Notes |
+|------|-----------|-------|
+| 3900 | S3 API    | Main endpoint — S3 clients connect here |
+| 3901 | RPC       | Inter-node only; unused on a single node |
+| 3902 | Web       | Static site serving, routed by `Host` header |
+| 3903 | Admin API | Management; used by garage-webui |
 
-**ArgoCD admin password:**
+**1. Secrets** — random values in `garage-secrets`:
 
 ```bash
-helm upgrade argocd argo-cd --repo https://argoproj.github.io/argo-helm --namespace argocd --set 'configs.params.server\.insecure=true' --set 'configs.secret.argocdServerAdminPassword=NEW_PASSWORD'
+# openssl
+kubectl -n garage create secret generic garage-secrets \
+  --from-literal=garage_rpc_secret=$(openssl rand -hex 32) \
+  --from-literal=garage_admin_token=$(openssl rand -hex 32)
+
+# NixOS (no openssl)
+kubectl -n garage create secret generic garage-secrets \
+  --from-literal=garage_rpc_secret=$(head -c32 /dev/urandom | od -An -tx1 | tr -d ' \n') \
+  --from-literal=garage_admin_token=$(head -c32 /dev/urandom | od -An -tx1 | tr -d ' \n')
 ```
 
-**Cluster secret:**
+**2. Layout** — once `garage-0` is Running:
+
+```bash
+NODE=$(kubectl -n garage exec garage-0 -- /garage status | awk 'NR>2{print $1; exit}')
+kubectl -n garage exec garage-0 -- /garage layout assign -z home -c 50G "$NODE"
+kubectl -n garage exec garage-0 -- /garage layout apply --version 1
+```
+
+**3. App key and bucket**:
+
+```bash
+kubectl -n garage exec garage-0 -- /garage key create app-key
+kubectl -n garage exec garage-0 -- /garage key allow --create-bucket app-key
+kubectl -n garage exec garage-0 -- /garage key info --show-secret app-key
+```
+
+Copy the key id and secret from the last command into the consuming app's secret.
+
+**Operations**:
+
+```bash
+kubectl -n garage exec garage-0 -- /garage status                    # node + capacity
+kubectl -n garage exec garage-0 -- /garage key list
+kubectl -n garage exec garage-0 -- /garage bucket list
+kubectl -n garage exec garage-0 -- /garage bucket alias <id> <name>  # expose in garage-webui
+```
+
+In-cluster endpoint: `http://garage.garage.svc.cluster.local:3900`, region `garage`.
+Editing the `garage.toml` ConfigMap does not restart the pod — reload with
+`kubectl -n garage rollout restart statefulset garage`. The management UI
+(garage-webui, `argocd-apps/garage-webui.yaml`) is served at `https://garage.homelab.com`.
+
+## Operations
+
+### ArgoCD
+
+```bash
+# did a pushed change apply? which app is unhappy? (Sync + Health)
+kubectl get applications -n argocd
+
+# stop waiting ~3 min for the poll — re-read git now
+kubectl annotate application root -n argocd argocd.argoproj.io/refresh=hard --overwrite
+
+# app wedged in a failed sync — delete it, root recreates it clean from git
+kubectl delete application <name> -n argocd
+```
+
+Get the current admin password:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+Change the admin password:
+
+```bash
+helm upgrade argocd argo-cd \
+  --repo https://argoproj.github.io/argo-helm --namespace argocd \
+  --set 'configs.params.server\.insecure=true' \
+  --set 'configs.secret.argocdServerAdminPassword=NEW_PASSWORD'
+```
+
+### Restart a workload
+
+```bash
+# pick up a changed Secret/ConfigMap, or clear a stuck pod (rolling, no data loss)
+kubectl rollout restart deployment <name> -n <namespace>
+kubectl rollout restart statefulset <name> -n <namespace>
+
+# all deployments in a namespace — e.g. after a shared secret rotated
+kubectl rollout restart deployment -n <namespace> --all
+```
+
+### Resize or relocate a volume (local-path)
+
+`local-path` volumes cannot be expanded in place — resizing or moving one means
+recreating it. Back up first unless the data is disposable. Deleting a PVC triggers the
+Delete reclaim, which removes the old directory automatically; new volumes follow the
+current `--default-local-storage-path`. The recreate differs by workload:
+
+```bash
+# CNPG cluster — delete it, the operator rebuilds from the manifest
+kubectl delete cluster <name> -n <namespace>
+
+# StatefulSet — volumeClaimTemplates are immutable, so drop the object (pods/PVCs keep
+# running), let ArgoCD recreate it; delete the PVC too to get a fresh/larger volume
+kubectl delete statefulset <name> -n <namespace> --cascade=orphan
+kubectl delete pvc <pvc-name> -n <namespace>
+
+# Deployment with a PVC — scale down, delete the PVC, scale back up
+kubectl scale deployment <name> -n <namespace> --replicas=0
+kubectl delete pvc <pvc-name> -n <namespace>
+kubectl scale deployment <name> -n <namespace> --replicas=1
+```
+
+### Rotating the DB password
+
+`cluster-secret` feeds two independent things: the Postgres role (CNPG rewrites it from
+the secret) and every client that reads it. Patching the secret alone is not enough —
+CNPG updates the role and Reflector propagates the copies, but running pods keep the old
+value in their connection pools until restarted.
 
 ```bash
 kubectl -n apps patch secret cluster-secret -p '{"stringData": {"password": "NEW_PASSWORD"}}'
-```
-
-Reflector propagates the change to `forgejo`, `databases`, and `monitoring`. Restart pods in those namespaces to pick up the new value:
-
-```bash
-kubectl rollout restart deployment -n apps --all
-kubectl rollout restart deployment -n forgejo --all
 kubectl rollout restart deployment -n databases --all
+kubectl rollout restart deployment -n forgejo --all
 kubectl rollout restart deployment -n monitoring --all
 ```
 
-## Adding a namespace
+### Secrets
 
 ```bash
 kubectl create namespace <namespace>
+kubectl create secret generic <name> -n <namespace> --from-literal=<key>=<value>
+kubectl patch secret <name> -n <namespace> -p '{"stringData": {"<key>": "<value>"}}'
+
+# read a value (stored base64)
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+kubectl -n apps   get secret cluster-secret            -o jsonpath='{.data.password}' | base64 -d; echo
 ```
 
-## Adding a secret to a namespace
+### Manual deployments (outside ArgoCD)
+
+NVIDIA device plugin — GPU scheduling; containerd runtime config lives in the NixOS `k3s.nix`:
 
 ```bash
-kubectl create secret generic <secret-name> -n <namespace> --from-literal=<key>=<value>
+kubectl apply  -f ~/cluster/manifests/nvidia-device-plugin/device-plugin.yaml
 ```
 
-To add or update a key in an existing secret:
+vLLM — set `--model` in `vllm.yaml` to a HuggingFace model id; gated models need the HF
+token secret uncommented:
 
 ```bash
-kubectl patch secret <secret-name> -n <namespace> -p '{"stringData": {"<key>": "<value>"}}'
-```
-## Manual deployments (not managed by ArgoCD)
-
-**NVIDIA device plugin:**
-```bash
-kubectl apply -f ~/cluster/manifests/nvidia-device-plugin/device-plugin.yaml
-kubectl delete -f ~/cluster/manifests/nvidia-device-plugin/device-plugin.yaml
-```
-> **Note** In order for k3s containerd to access nvidia containerd runtime and schedule GPU workloads, a k3s containerd config is needed. Configuration: https://github.com/milanpanic2/nixos-config/blob/main/modules/k3s.nix contains containerdConfigTemplate
-
-**vLLM:**
-
-Change the `--model` arg in `vllm.yaml` to any HuggingFace model ID (e.g. `Qwen/Qwen3.6-27B-AWQ`).
-For gated models (Gemma, Llama), uncomment and configure the Hugging Face token secret in `vllm.yaml`.
-Or create yourself.
-
-```bash
-kubectl apply -f ~/cluster/manifests/vllm/vllm.yaml
-kubectl delete -f ~/cluster/manifests/vllm/vllm.yaml
-# If renaming resources (e.g. Service), delete first then apply:
-kubectl delete -f ~/cluster/manifests/vllm/vllm.yaml && kubectl apply -f ~/cluster/manifests/vllm/vllm.yaml
+kubectl apply  -f ~/cluster/manifests/vllm/vllm.yaml
+kubectl delete -f ~/cluster/manifests/vllm/vllm.yaml && kubectl apply -f ~/cluster/manifests/vllm/vllm.yaml  # after a rename
 ```
 
-**Open WebUI** (chat interface, connects to vLLM):
+Open WebUI — chat UI against vLLM:
+
 ```bash
 kubectl apply -f ~/cluster/manifests/vllm/open-webui.yaml
-kubectl delete -f ~/cluster/manifests/vllm/open-webui.yaml
 ```
 
-## Garage (S3 object storage)
+## Debugging (k9s)
 
-### Ports
+k9s is the primary tool; the kubectl one-liners below are for one-offs and scripting.
 
-| Port | Purpose   | On the k8s Service? | Notes |
-|------|-----------|---------------------|-------|
-| 3900 | S3 API    | ✅ yes              | Object storage endpoint — connect S3 clients here |
-| 3902 | Web       | ✅ yes              | Static website serving (routes by `Host` header) |
-| 3901 | RPC       | ❌ (single node)    | Inter-node cluster traffic; add a headless Service when scaling to multi-node |
-| 3903 | Admin API | ✅ (ClusterIP only) | Management; used by garage-webui. Not exposed externally |
+| Key | Action |
+|-----|--------|
+| `:pods` `⏎`   | switch resource type — also `:deploy`, `:sts`, `:svc`, `:applications`, `:events`, `:pvc`, `:secrets` |
+| `0` / `/text` | all namespaces / filter the list |
+| `⏎` / `esc`   | drill in (Deployment → its pods) / back |
+| `l` / `d`     | logs / describe (config + an Events list) |
+| `y` / `s`     | full YAML / shell into the container |
 
-### First-time setup (run ONCE per cluster)
+### Diagnosing
 
-Garage needs a storage layout assigned before it accepts data. This is a one-time
-imperative step — the layout persists on the PVC, so you never run it again (survives
-restarts/upgrades). After the pod is `Running`:
+**Pod won't start or crashes** — `d`, read the Events: `CreateContainerConfigError`
+(missing secret/configmap), `ImagePullBackOff` (bad image/tag), `OOMKilled` (hit its
+memory limit), `FailedScheduling` (no capacity). Then `l` for the app's own output.
 
-```bash
-# assign this node 10G of capacity, then commit the layout
-NODE=$(kubectl -n garage exec garage-0 -- /garage status | awk 'NR>2{print $1; exit}')
-kubectl exec -n garage garage-0 -- /garage layout assign -z default -c 10G "$NODE"
-kubectl exec -n garage garage-0 -- /garage layout apply --version 1
-```
+**Deployment** — `d` shows rollout status and conditions (`ProgressDeadlineExceeded` =
+pods never went Ready). Drill in (`⏎`) to its pods and diagnose the failing one.
 
-Generate garage_rpc_secret and garage_admin_token secrets used by garage for multipnode and admin pande # TODO what does garage_admin_token do ?!?!
-```bash
-kubectl -n garage create secret generic garage_rpc_secret --from-literal=rpcSecret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
-kubectl -n garage create secret generic garage_admin_token --from-literal=rpcSecret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d '\n')
-```
+**ArgoCD Application** — `:applications`, then `d` on the app: **Sync** (does it match
+git?) and **Health**, plus the sync error. OutOfSync + Degraded usually means a bad
+manifest; a wedged app gets the delete-and-recreate from Operations.
 
-Create a key for app access, find key id, and allow it to create bucket, and then give it to an app
-and add as kubernetes secrets
-```bash
-kubectl exec -n garage garage-0 -- /garage key create app-key
-kubectl exec -n garage garage-0 -- /garage key list
-kubectl exec -n garage garage-0 -- /garage key allow --create-bucket *key_id*
-```
-Useful garage stuff
-```bash
-kubectl exec -n garage garage-0 -- /garage key list # list keys
-kubectl exec -n garage garage-0 -- /garage key info --show-secret app-key  # view id + secret
-# create global alias for bucket for garage webui access
-kubectl exec -n garage garage-0 -- /garage bucket alias 7c803f3e81633f29 image-transcriptions-bucket
-```
-
-### Connecting
-  `http://garage.garage.svc.cluster.local:3900`, region `garage`.
-
-Editing `garage.toml` (the ConfigMap) does **not** restart the pod — reload with
-`kubectl -n garage rollout restart statefulset garage`.
-
-### garage-webui (management UI)
-
-`garage-webui/garage-webui.yaml` runs [`khairul169/garage-webui`](https://github.com/khairul169/garage-webui)
-in the `garage` namespace, talking to the admin API (`:3903`) and S3 (`:3900`) over the
-internal Service. Only the UI is exposed, via ingress at **`https://garage.homelab.com`**.
-The ArgoCD app is `argocd-apps/garage-webui.yaml` (sync-wave 3).
-
-## Useful commands
+### kubectl one-liners
 
 ```bash
-# Force ArgoCD to re-read the git repo and sync
-kubectl annotate application root -n argocd argocd.argoproj.io/refresh=hard --overwrite
-
-# Restart a deployment (instead of deleting pods)
-kubectl rollout restart deployment <name> -n <namespace>
-
-# Restart all deployments in a namespace
-kubectl rollout restart deployment -n <namespace> --all
-
-# Check sync status of all ArgoCD applications
-kubectl get applications -n argocd
-
-# If an ArgoCD app is stuck in a failed sync, delete it — the root app will recreate it
-kubectl delete application <name> -n argocd
-
-# View logs for a pod
+# logs — plain, follow live, or the previous crashed container
+kubectl logs <pod> -n <namespace>
 kubectl logs -f deployment/<name> -n <namespace>
+kubectl logs <pod> -n <namespace> --previous
 
-# Get all pods across all namespaces
-kubectl get pods -A
+# why a container died — exit code + reason (OOMKilled, Error, ...)
+kubectl -n <namespace> get pod <pod> -o jsonpath='{.status.containerStatuses[0].lastState}{"\n"}'
 
-# View events in a namespace (sorted by time)
-kubectl get events -n <namespace> --sort-by='.lastTimestamp'
-
-# View events for a specific pod
+# describe (config + Events at the bottom)
 kubectl describe pod <name> -n <namespace>
 
-# assign persistent volume to garage layout
-kubectl -n garage exec -it garage-0 -- /garage status          # note the node ID
-kubectl -n garage exec -it garage-0 -- /garage layout assign -z home -c 10G <node-id>
-kubectl -n garage exec -it garage-0 -- /garage layout apply --version 1
+# events in a namespace, newest last
+kubectl get events -n <namespace> --sort-by='.lastTimestamp'
 
-# setup garage-rpc-secret for distributed node communication
-# needs openssl installed to generate password
-kubectl -n garage create secret generic garage-rpc-secret --from-literal=rpcSecret=$(openssl rand -hex 32)
-# on nixos:
-kubectl -n garage create secret generic garage-rpc-secret --from-literal=rpcSecret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
-
-# delete secret example
-kubectl -n garage delete secret garage-rpc-secret
-
-# check for OOM or other pod errors:
-kubectl -n <namespace> get pod <pod_name> -o jsonpath='{.status.containerStatuses[0].lastState}{"\n"}'
+# every pod, all namespaces
+kubectl get pods -A
 ```
 
-## Sync wave order
+## Reference — sync waves
 
-- **Wave -1**: Namespaces (databases, forgejo, apps)
-- **Wave 0**: MetalLB, cert-manager, Reflector, CNPG, Strimzi
-- **Wave 1**: MetalLB config, cert-manager config
-- **Wave 2**: PostgreSQL, Forgejo, Kafka, Garage
-- **Wave 3**: Auth service, garage-webui
-
-
+| Wave | Contents |
+|------|----------|
+| -1   | namespaces |
+| 0    | operators — cert-manager, CNPG, MetalLB, Reflector, Strimzi |
+| 1    | configs + DB — argocd-config, cert-manager-config, forgejo-config, metallb-config, traefik, postgres |
+| 2    | forgejo, garage, kafka, searxng, valkey |
+| 3    | apps — auth (Keycloak), crw, garage-webui, llm-agents, open-webui, web-scraper; monitoring — alloy, grafana, loki, prometheus, tempo |
+| 4    | monitoring-config |
+</content>
