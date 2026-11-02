@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nvidia-metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvidia-metrics
+  namespace: nvidia-metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8091"
+    prometheus.io/path: "/"
+spec:
+  ports:
+    - name: api
+      port: 8091
+      targetPort: 8091
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: nvidia-metrics
+  namespace: nvidia-metrics
+  labels:
+    kubernetes.io/service-name: nvidia-metrics
+addressType: IPv4
+endpoints:
+  - addresses:
+      - 192.168.8.208
+ports:
+  - name: api
+    port: 8091
+    protocol: TCP

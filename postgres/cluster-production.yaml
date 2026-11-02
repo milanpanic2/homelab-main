@@ -10,7 +10,7 @@ spec:
   enableSuperuserAccess: true
 
   storage:
-    size: 5Gi
+    size: 50Gi
     storageClass: local-path
 
   resources:

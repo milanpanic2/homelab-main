@@ -103,10 +103,6 @@ kubectl delete -f ~/cluster/manifests/vllm/open-webui.yaml
 
 ## Garage (S3 object storage)
 
-Secrets: `rpc_secret` and `admin_token` are injected from the
-`cluster-secret` (bootstrap) via the `GARAGE_RPC_SECRET` / `GARAGE_ADMIN_TOKEN` env
-vars. Rotate them in `bootstrap.yaml` (`garage_rpc_secret`, `garage_admin_token`).
-
 ### Ports
 
 | Port | Purpose   | On the k8s Service? | Notes |
@@ -125,8 +121,29 @@ restarts/upgrades). After the pod is `Running`:
 ```bash
 # assign this node 10G of capacity, then commit the layout
 NODE=$(kubectl -n garage exec garage-0 -- /garage status | awk 'NR>2{print $1; exit}')
-kubectl -n garage exec garage-0 -- /garage layout assign -z default -c 10G "$NODE"
-kubectl -n garage exec garage-0 -- /garage layout apply --version 1
+kubectl exec -n garage garage-0 -- /garage layout assign -z default -c 10G "$NODE"
+kubectl exec -n garage garage-0 -- /garage layout apply --version 1
+```
+
+Generate garage_rpc_secret and garage_admin_token secrets used by garage for multipnode and admin pande # TODO what does garage_admin_token do ?!?!
+```bash
+kubectl -n garage create secret generic garage_rpc_secret --from-literal=rpcSecret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+kubectl -n garage create secret generic garage_admin_token --from-literal=rpcSecret=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d '\n')
+```
+
+Create a key for app access, find key id, and allow it to create bucket, and then give it to an app
+and add as kubernetes secrets
+```bash
+kubectl exec -n garage garage-0 -- /garage key create app-key
+kubectl exec -n garage garage-0 -- /garage key list
+kubectl exec -n garage garage-0 -- /garage key allow --create-bucket *key_id*
+```
+Useful garage stuff
+```bash
+kubectl exec -n garage garage-0 -- /garage key list # list keys
+kubectl exec -n garage garage-0 -- /garage key info --show-secret app-key  # view id + secret
+# create global alias for bucket for garage webui access
+kubectl exec -n garage garage-0 -- /garage bucket alias 7c803f3e81633f29 image-transcriptions-bucket
 ```
 
 ### Connecting
@@ -185,6 +202,9 @@ kubectl -n garage create secret generic garage-rpc-secret --from-literal=rpcSecr
 
 # delete secret example
 kubectl -n garage delete secret garage-rpc-secret
+
+# check for OOM or other pod errors:
+kubectl -n <namespace> get pod <pod_name> -o jsonpath='{.status.containerStatuses[0].lastState}{"\n"}'
 ```
 
 ## Sync wave order
