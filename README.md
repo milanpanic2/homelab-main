@@ -93,7 +93,14 @@ kubectl -n garage exec garage-0 -- /garage key allow --create-bucket app-key
 kubectl -n garage exec garage-0 -- /garage key info --show-secret app-key
 ```
 
-Copy the key id and secret from the last command into the consuming app's secret.
+`key info` prints the Key ID and Secret key. Write them into the secret the app reads
+(`access_key` ← Key ID, `secret_key` ← Secret key):
+
+```bash
+kubectl -n apps patch secret garage-secret -p '{"stringData": {"access_key": "<Key ID>", "secret_key": "<Secret key>"}}'
+```
+
+Restart the consuming app afterward so it reloads the credentials.
 
 **Operations**:
 
@@ -170,6 +177,15 @@ kubectl delete pvc <pvc-name> -n <namespace>
 kubectl scale deployment <name> -n <namespace> --replicas=0
 kubectl delete pvc <pvc-name> -n <namespace>
 kubectl scale deployment <name> -n <namespace> --replicas=1
+```
+
+Self-heal may recreate the workload and re-adopt the old PVC before the delete completes —
+a silent failure that leaves the old path and size. Verify after rebuild; if re-adopted,
+delete the new PVC and pod and repeat.
+
+```bash
+kubectl get pv -o custom-columns='PVC:.spec.claimRef.name,SIZE:.spec.capacity.storage,PATH:.spec.local.path' | grep <name>
+# expect /home/k3s-storage/... at the new size
 ```
 
 ### Rotating the DB password
