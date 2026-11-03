@@ -85,7 +85,10 @@ kubectl -n garage exec garage-0 -- /garage layout assign -z home -c 50G "$NODE"
 kubectl -n garage exec garage-0 -- /garage layout apply --version 1
 ```
 
-**3. App key and bucket**:
+**3. App S3 key** — the credentials the app uses to reach Garage. Create the key in
+Garage, then store it as a secret in the app's namespace.
+
+Create the key in Garage (`--create-bucket` lets the app make its own bucket):
 
 ```bash
 kubectl -n garage exec garage-0 -- /garage key create app-key
@@ -93,14 +96,18 @@ kubectl -n garage exec garage-0 -- /garage key allow --create-bucket app-key
 kubectl -n garage exec garage-0 -- /garage key info --show-secret app-key
 ```
 
-`key info` prints the Key ID and Secret key. Write them into the secret the app reads
-(`access_key` ← Key ID, `secret_key` ← Secret key):
+Store the printed Key ID and Secret key as `garage-secret` in the app's namespace
+(`access_key` ← Key ID, `secret_key` ← Secret key), then restart the app:
 
 ```bash
-kubectl -n apps patch secret garage-secret -p '{"stringData": {"access_key": "<Key ID>", "secret_key": "<Secret key>"}}'
-```
+# first time — create
+kubectl -n <namespace> create secret generic garage-secret \
+  --from-literal=access_key=<Key ID> \
+  --from-literal=secret_key=<Secret key>
 
-Restart the consuming app afterward so it reloads the credentials.
+# rotation — patch
+kubectl -n <namespace> patch secret garage-secret -p '{"stringData": {"access_key": "<Key ID>", "secret_key": "<Secret key>"}}'
+```
 
 **Operations**:
 

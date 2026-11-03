@@ -1,5 +1,5 @@
 ---
-# ExternalName service so apps can access the database as just "postgresql:5432"
+# Direct connection to the primary — use for admin/DDL (ensure_databases, create_all).
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,3 +8,13 @@ metadata:
 spec:
   type: ExternalName
   externalName: postgresql-rw.databases.svc.cluster.local
+---
+# Pooled connection via PgBouncer — use for runtime app queries.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: apps
+spec:
+  type: ExternalName
+  externalName: postgresql-pooler-rw.databases.svc.cluster.local

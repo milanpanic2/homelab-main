@@ -15,7 +15,7 @@ data:
           "Host": "postgresql-rw",
           "Port": 5432,
           "MaintenanceDB": "postgres",
-          "Username": "cluster_user",
+          "Username": "postgres",
           "SSLMode": "prefer"
         }
       }

@@ -1,0 +1,18 @@
+---
+# PgBouncer connection pooler in front of the primary.
+# CNPG creates a Deployment + a Service named "postgresql-pooler-rw".
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: postgresql-pooler-rw
+  namespace: databases
+spec:
+  cluster:
+    name: postgresql
+  instances: 1
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "500"
+      default_pool_size: "10"

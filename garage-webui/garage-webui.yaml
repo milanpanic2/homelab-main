@@ -25,7 +25,7 @@ spec:
             - name: API_ADMIN_KEY
               valueFrom:
                 secretKeyRef:
-                  name: cluster-secret
+                  name: garage-secrets
                   key: garage_admin_token
             - name: S3_ENDPOINT_URL
               value: "http://garage.garage.svc.cluster.local:3900"
