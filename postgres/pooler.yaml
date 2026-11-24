@@ -15,4 +15,5 @@ spec:
     poolMode: transaction
     parameters:
       max_client_conn: "500"
-      default_pool_size: "10"
+      default_pool_size: "20"
+      max_prepared_statements: "200"
