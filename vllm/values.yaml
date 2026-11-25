@@ -1,0 +1,28 @@
+servingEngineSpec:
+  modelSpec:
+    - name: "qwen3-35b-a3b"
+      repository: "vllm/vllm-openai"
+      tag: "latest"
+      modelURL: "Intel/Qwen3.6-35B-A3B-int4-AutoRound"
+      replicaCount: 1
+
+      runtimeClassName: "nvidia"
+
+      requestCPU: 2
+      requestMemory: "16Gi"
+      requestGPU: 1
+      limitCPU: "4"
+      limitMemory: "24Gi"
+
+      pvcStorage: "40Gi"
+
+      # hf_token: "<token>"   # uncomment only if the model is gated
+
+      vllmConfig:
+        maxModelLen: 4096
+        extraArgs:
+          - "--gpu-memory-utilization"
+          - "0.95"
+          - "--enforce-eager"
+          - "--quantization"
+          - "moe_wna16"
